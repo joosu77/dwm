@@ -1,21 +1,46 @@
+#include <X11/XF86keysym.h>
+
 /* See LICENSE file for copyright and license details. */
+
+
+/* audio controls */
+static const char *upvol[]   = { "/usr/bin/pactl", "set-sink-volume", "0", "+5%",     NULL };
+static const char *downvol[] = { "/usr/bin/pactl", "set-sink-volume", "0", "-5%",     NULL };
+static const char *mutevol[]   = { "/usr/bin/pactl", "set-sink-mute", "0", "toggle",     NULL };
+
+/* brightness */
+static const char *upbright[] = { "/home/joosep/scripts/brightness.sh", "100",  NULL };
+static const char *downbright[] = { "/home/joosep/scripts/brightness.sh", "-100",  NULL };
 
 /* appearance */
 static const unsigned int borderpx  = 1;        /* border pixel of windows */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const int showbar            = 1;        /* 0 means no bar */
 static const int topbar             = 1;        /* 0 means bottom bar */
-static const char *fonts[]          = { "monospace:size=10" };
-static const char dmenufont[]       = "monospace:size=10";
+static const char *fonts[]          = {"xos4terminus:size=16"};//{ "monospace:size=10" };
+static const char dmenufont[]       = "xos4terminus:size=16";//"monospace:size=10";
 static const char col_gray1[]       = "#222222";
 static const char col_gray2[]       = "#444444";
 static const char col_gray3[]       = "#bbbbbb";
 static const char col_gray4[]       = "#eeeeee";
 static const char col_cyan[]        = "#005577";
+static const char col_black[]       = "#000000";
+static const char col_red[]         = "#ff0000";
+static const char col_yellow[]      = "#ffff00";
+static const char col_white[]       = "#ffffff";
+static const char col_dgreen[]       = "#006400";
+static const char col_lgreen[]       = "#7CFC00";
+static const char col_purple[]       = "#800080";
+
 static const char *colors[][3]      = {
 	/*               fg         bg         border   */
 	[SchemeNorm] = { col_gray3, col_gray1, col_gray2 },
-	[SchemeSel]  = { col_gray4, col_cyan,  col_cyan  },
+	[SchemeFull]  = { col_dgreen, col_gray1,  col_cyan  },
+	[SchemeCharging]  = { col_lgreen, col_gray1,  col_cyan  },
+	[SchemeDischarging] = { col_yellow, col_gray1, col_red },
+	[SchemeLow] = { col_yellow, col_red, col_red },
+	[SchemeUnknown] = { col_purple, col_gray1, col_red },
+	[SchemeSel] = { col_gray4, col_cyan, col_cyan },
 };
 
 /* tagging */
@@ -59,6 +84,10 @@ static char dmenumon[2] = "0"; /* component of dmenucmd, manipulated in spawn() 
 static const char *dmenucmd[] = { "dmenu_run", "-m", dmenumon, "-fn", dmenufont, "-nb", col_gray1, "-nf", col_gray3, "-sb", col_cyan, "-sf", col_gray4, NULL };
 static const char *termcmd[]  = { "st", NULL };
 
+/* commands spawned when clicking statusbar, the mouse button pressed is exported as BUTTON */
+static char *statuscmds[] = { "notify-send Mouse$BUTTON" };
+static char *statuscmd[] = { "/bin/sh", "-c", NULL, NULL };
+
 static Key keys[] = {
 	/* modifier                     key        function        argument */
 	{ MODKEY,                       XK_p,      spawn,          {.v = dmenucmd } },
@@ -94,6 +123,12 @@ static Key keys[] = {
 	TAGKEYS(                        XK_8,                      7)
 	TAGKEYS(                        XK_9,                      8)
 	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} },
+	{ 0,                       	XF86XK_AudioLowerVolume, spawn, {.v = downvol } },
+	{ 0,                       	XF86XK_AudioMute, spawn, {.v = mutevol } },
+	{ 0,                       	XF86XK_AudioRaiseVolume, spawn, {.v = upvol   } },
+	{ 0,                       	XF86XK_MonBrightnessUp, spawn, {.v = upbright } },
+	{ 0,                       	XF86XK_MonBrightnessDown, spawn, {.v = downbright } },
+	
 };
 
 /* button definitions */
@@ -103,7 +138,9 @@ static Button buttons[] = {
 	{ ClkLtSymbol,          0,              Button1,        setlayout,      {0} },
 	{ ClkLtSymbol,          0,              Button3,        setlayout,      {.v = &layouts[2]} },
 	{ ClkWinTitle,          0,              Button2,        zoom,           {0} },
-	{ ClkStatusText,        0,              Button2,        spawn,          {.v = termcmd } },
+	{ ClkStatusText,	0,		Button1,	spawn,		{.v = statuscmd } },
+	{ ClkStatusText,	0,		Button2,	spawn,		{.v = statuscmd } },
+	{ ClkStatusText,	0,		Button3,	spawn,		{.v = statuscmd } },
 	{ ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} },
 	{ ClkClientWin,         MODKEY,         Button2,        togglefloating, {0} },
 	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },
