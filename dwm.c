@@ -177,6 +177,7 @@ static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
+static int getdwmblockspid();
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -214,6 +215,7 @@ static void setup(void);
 static void seturgent(Client *c, int urg);
 static void showhide(Client *c);
 static void sigchld(int unused);
+static void sigdwmblocks(const Arg *arg);
 static void spawn(const Arg *arg);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
@@ -247,6 +249,8 @@ static void zoom(const Arg *arg);
 static const char broken[] = "broken";
 static char stext[256];
 static char rawstext[256];
+static int dwmblockssig;
+pid_t dwmblockspid = 0;
 static int statuscmdn;
 static char lastbutton[] = "-";
 static int screen;
@@ -494,6 +498,7 @@ buttonpress(XEvent *e)
 			int i = -1;
 			char ch;
 			statuscmdn = 0;
+			dwmblockssig = 0;
 			while (text[++i]) {
                                	if ((unsigned char)text[i] < ' ') {
                                        	ch = text[i];
@@ -504,6 +509,7 @@ buttonpress(XEvent *e)
                                        	i = -1;
                                        	if (x >= ev->x) break;
                                        	if (ch <= LENGTH(statuscmds)) statuscmdn = ch - 1;
+                                       	dwmblockssig = ch;
 				}
 			}
 
@@ -699,7 +705,7 @@ copyvalidchars(char *text, char *rawtext)
        	int i = -1, j = 0;
 
        	while(rawtext[++i]) {
-               	if ((unsigned char)rawtext[i] >= ' ') {
+               	if ((unsigned char)rawtext[i] >= ' ' || ( rawtext[i] <= sizeof colors / sizeof colors[0] && rawtext[i] > 0 )) {
                        	text[j++] = rawtext[i];
 		}
 	}
@@ -987,6 +993,19 @@ getatomprop(Client *c, Atom prop)
 	}
 	return atom;
 }
+
+int
+getdwmblockspid()
+{
+       char buf[16];
+       FILE *fp = popen("pidof -s dwmblocks", "r");
+       fgets(buf, sizeof(buf), fp);
+       pid_t pid = strtoul(buf, NULL, 10);
+       pclose(fp);
+       dwmblockspid = pid;
+       return pid != 0 ? 0 : -1;
+}
+
 
 int
 getrootptr(int *x, int *y)
@@ -1754,6 +1773,24 @@ sigchld(int unused)
 }
 
 void
+sigdwmblocks(const Arg *arg)
+{
+       union sigval sv;
+       sv.sival_int = (dwmblockssig << 8) | arg->i;
+       if (!dwmblockspid)
+               if (getdwmblockspid() == -1)
+                       return;
+
+       if (sigqueue(dwmblockspid, SIGUSR1, sv) == -1) {
+               if (errno == ESRCH) {
+                       if (!getdwmblockspid())
+                               sigqueue(dwmblockspid, SIGUSR1, sv);
+               }
+       }
+}
+
+
+void
 spawn(const Arg *arg)
 {
 	if (arg->v == dmenucmd)
@@ -2144,7 +2181,7 @@ updatestatus(void)
 {
 	Monitor *m;
 	if (!gettextprop(root, XA_WM_NAME, rawstext, sizeof(rawstext)))
-		strcpy(stext, "dwm-"VERSION);
+		strcpy(stext, "LMAO su statusbar ei tööta  dwm-"VERSION);
 	else
 		copyvalidchars(stext, rawstext);
 	for (m = mons; m; m = m->next)
